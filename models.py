@@ -26,12 +26,11 @@ import time
 from google.appengine.ext import db
 # from google.appengine.ext.db import djangoforms
 from google.appengine.api import mail
-import ramcache
-from google.appengine.api import urlfetch
+from framework import ramcache
+import requests
 from google.appengine.api import users
 
-import cloud_tasks_helpers
-import common
+from framework import cloud_tasks_helpers
 import settings
 import util
 
@@ -382,7 +381,7 @@ class BlinkComponent(DictModel):
     if components is None or update_cache:
       components = []
       url = self.COMPONENTS_ENDPOINT + '?cache-buster=%s' % time.time()
-      result = urlfetch.fetch(url, deadline=60)
+      result = requests.get(url, timeout=60)
       if result.status_code == 200:
         components = sorted(json.loads(result.content))
         ramcache.set(key, components)
@@ -405,13 +404,13 @@ class BlinkComponent(DictModel):
       components = {}
       url = self.WF_CONTENT_ENDPOINT + '?cache-buster=%s' % time.time()
       try:
-        result = urlfetch.fetch(url, deadline=50)
+        result = requests.get(url, timeout=50)
         if result.status_code == 200:
           components = json.loads(result.content)
           ramcache.set(key, components)
         else:
           logging.error('Fetching /web blink components content returned: %s' % result.status_code)
-      except urlfetch.DeadlineExceededError:
+      except requests.Timeout:
         logging.info('deadline exceeded when fetching %r', url)
 
     if not components:
